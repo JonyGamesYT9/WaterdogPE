@@ -1,18 +1,3 @@
-/*
- * Copyright 2022 WaterdogTEAM
- * Licensed under the GNU General Public License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package dev.waterdog.waterdogpe.network.protocol.handler.downstream;
 
 import dev.waterdog.waterdogpe.command.Command;
@@ -20,6 +5,7 @@ import dev.waterdog.waterdogpe.network.connection.client.ClientConnection;
 import dev.waterdog.waterdogpe.network.protocol.ProtocolVersion;
 import dev.waterdog.waterdogpe.network.protocol.handler.ProxyPacketHandler;
 import dev.waterdog.waterdogpe.network.protocol.rewrite.RewriteMaps;
+import dev.waterdog.waterdogpe.network.serverinfo.ServerInfo;
 import dev.waterdog.waterdogpe.player.ProxiedPlayer;
 import dev.waterdog.waterdogpe.network.protocol.Signals;
 import org.cloudburstmc.protocol.bedrock.data.command.CommandData;
@@ -140,6 +126,37 @@ public abstract class AbstractDownstreamHandler implements ProxyPacketHandler {
         return Signals.CANCEL;
     }
 
+    @Override
+    public PacketSignal handle (DebugInfoPacket packet)
+    {
+        String data = packet.getData();
+        String[] parts = data.split(":");
+        if (parts.length >= 2)
+        {
+            if (parts[0].equalsIgnoreCase("nevermc"))
+            {
+                switch (parts[1])
+                {
+                    case "transfer" -> {
+                        ServerInfo info = this.player.getProxy().getServerInfo(parts[2]);
+                        if (info != null)
+                        {
+                            this.player.connect(info);
+                        }
+                        return Signals.CANCEL;
+                    }
+                    case "ping" -> {
+                        long latency = this.player.getPing();
+                        DebugInfoPacket pk = new DebugInfoPacket();
+                        pk.setData("nevermc:ping:"+latency);
+                        this.player.getDownstreamConnection().sendPacket(pk);
+                        return Signals.CANCEL;
+                    }
+                }
+            }
+        }
+        return Signals.CANCEL;
+    }
     @Override
     public RewriteMaps getRewriteMaps() {
         return this.player.getRewriteMaps();
